@@ -37,14 +37,53 @@ const items=[
 {name:'Corn (Makai)',cat:'Seasonal & Specialty',emoji:'🌽'},{name:'Mushroom',cat:'Seasonal & Specialty',emoji:'🍄'},{name:'Raw Banana',cat:'Seasonal & Specialty',emoji:'🍌'},{name:'Drumstick (Sohanjna)',cat:'Seasonal & Specialty',emoji:'🌿'},{name:'Ivy Gourd (Kundru)',cat:'Seasonal & Specialty',emoji:'🥒'},{name:'Chayote (Chow Chow)',cat:'Seasonal & Specialty',emoji:'🥒'},{name:'Jackfruit (Kathal)',cat:'Seasonal & Specialty',emoji:'🍈'}
 ];
 let category='All',cart={};
-function renderProducts(){const q=document.getElementById('search').value.trim().toLowerCase();const filtered=items.filter(x=>(category==='All'||x.cat===category)&&x.name.toLowerCase().includes(q));document.getElementById('product-list').innerHTML=filtered.length?filtered.map(x=>'<article class="product"><div class="product-pic"><span class="veg-emoji">'+x.emoji+'</span></div><h3>'+x.name+'</h3><small>Seasonal availability varies</small><div class="price-row"><span class="price">Price on WhatsApp</span><button class="add" aria-label="Add '+x.name+' to cart" onclick="addItem(\\''+x.name+'\\')">+</button></div></article>').join(''):'<div class="empty">No vegetables found. Try another search.</div>'}
-document.getElementById('filters').addEventListener('click',e=>{if(e.target.matches('button[data-cat]')){category=e.target.dataset.cat;document.querySelectorAll('.filter').forEach(b=>b.classList.toggle('active',b===e.target));renderProducts()}});
+function renderProducts(){
+ const q=document.getElementById('search').value.trim().toLowerCase();
+ const filtered=items.filter(x=>(category==='All'||x.cat===category)&&x.name.toLowerCase().includes(q));
+ const host=document.getElementById('product-list'); host.replaceChildren();
+ if(!filtered.length){const empty=document.createElement('div');empty.className='empty';empty.textContent='No vegetables found. Try another search.';host.append(empty);return}
+ filtered.forEach(x=>{
+  const card=document.createElement('article');card.className='product';
+  const pic=document.createElement('div');pic.className='product-pic';
+  const emoji=document.createElement('span');emoji.className='veg-emoji';emoji.textContent=x.emoji;pic.append(emoji);
+  const name=document.createElement('h3');name.textContent=x.name;
+  const note=document.createElement('small');note.textContent='Seasonal availability varies';
+  const row=document.createElement('div');row.className='price-row';
+  const price=document.createElement('span');price.className='price';price.textContent='Price on WhatsApp';
+  const add=document.createElement('button');add.className='add';add.type='button';add.dataset.addItem=x.name;add.setAttribute('aria-label','Add '+x.name+' to cart');add.textContent='+';
+  row.append(price,add);card.append(pic,name,note,row);host.append(card);
+ });
+}
+document.getElementById('product-list').addEventListener('click',e=>{const b=e.target.closest('button[data-add-item]');if(b)addItem(b.dataset.addItem)});document.getElementById('filters').addEventListener('click',e=>{if(e.target.matches('button[data-cat]')){category=e.target.dataset.cat;document.querySelectorAll('.filter').forEach(b=>b.classList.toggle('active',b===e.target));renderProducts()}});
 function addItem(name){cart[name]=(cart[name]||0)+1;updateCart()}
 function changeQty(name,delta){cart[name]=(cart[name]||0)+delta;if(cart[name]<=0)delete cart[name];updateCart()}
-function updateCart(){const count=Object.values(cart).reduce((a,b)=>a+b,0);document.getElementById('cart-count').textContent=count;const lines=Object.entries(cart);document.getElementById('cart-items').innerHTML=lines.length?lines.map(([name,n])=>{const x=items.find(i=>i.name===name);return '<div class="cart-line"><span>'+x.emoji+' '+name+'<br><small>Price confirmed on WhatsApp</small></span><span class="qty"><button onclick="changeQty(\\''+name+'\\',-1)">−</button> '+n+' <button onclick="changeQty(\\''+name+'\\',1)">+</button></span><b>× '+n+'</b></div>'}).join(''):'<p>Your cart is empty.</p>';document.getElementById('total').textContent='Prices confirmed on WhatsApp'}
-function openCart(){document.getElementById('cart-panel').classList.add('open')}function closeCart(){document.getElementById('cart-panel').classList.remove('open')}
-function sendOrder(){const lines=Object.entries(cart);if(!lines.length){alert('Your cart is empty. Please add vegetables first.');return}let message='Hello Sabzi Panda! I would like to order:\\n\\n'+lines.map(([name,n])=>name+' x '+n).join('\\n')+'\\n\\nPlease confirm today’s availability, prices, delivery charges, and my delivery address.';window.open('https://wa.me/'+WA_NUMBER+'?text='+encodeURIComponent(message),'_blank','noopener')}
-document.getElementById('year').textContent=new Date().getFullYear();renderProducts();updateCart();
+function updateCart(){
+ const count=Object.values(cart).reduce((a,b)=>a+b,0);
+ document.getElementById('cart-count').textContent=count;
+ const host=document.getElementById('cart-items');host.replaceChildren();
+ const lines=Object.entries(cart);
+ if(!lines.length){const p=document.createElement('p');p.textContent='Your cart is empty.';host.append(p)}
+ lines.forEach(([name,n])=>{
+  const item=items.find(i=>i.name===name);if(!item)return;
+  const line=document.createElement('div');line.className='cart-line';
+  const label=document.createElement('span');label.textContent=item.emoji+' '+name;
+  const small=document.createElement('small');small.textContent='Price confirmed on WhatsApp';label.append(document.createElement('br'),small);
+  const qty=document.createElement('span');qty.className='qty';
+  const minus=document.createElement('button');minus.type='button';minus.dataset.changeQty=name;minus.dataset.delta='-1';minus.textContent='−';
+  const plus=document.createElement('button');plus.type='button';plus.dataset.changeQty=name;plus.dataset.delta='1';plus.textContent='+';
+  qty.append(minus,document.createTextNode(' '+n+' '),plus);
+  const total=document.createElement('b');total.textContent='× '+n;
+  line.append(label,qty,total);host.append(line);
+ });
+ document.getElementById('total').textContent='Prices confirmed on WhatsApp';
+}
+document.getElementById('cart-items').addEventListener('click',e=>{const b=e.target.closest('button[data-change-qty]');if(b)changeQty(b.dataset.changeQty,Number(b.dataset.delta))});function openCart(){document.getElementById('cart-panel').classList.add('open')}function closeCart(){document.getElementById('cart-panel').classList.remove('open')}
+function sendOrder(){
+ const lines=Object.entries(cart);
+ if(!lines.length){alert('Your cart is empty. Please add vegetables first.');return}
+ const message='Hello Sabzi Panda! I would like to order:\n\n'+lines.map(([name,n])=>name+' x '+n).join('\n')+'\n\nPlease confirm today’s availability, prices, delivery charges, and my delivery address.';
+ window.open('https://wa.me/'+WA_NUMBER+'?text='+encodeURIComponent(message),'_blank','noopener');
+}document.getElementById('year').textContent=new Date().getFullYear();renderProducts();updateCart();
 </script>
 </body>
 </html>
